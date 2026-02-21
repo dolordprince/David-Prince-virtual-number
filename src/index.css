@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-app-bg: #0a0a0f;
+  --color-app-accent: #00c9a7;
+  --color-app-accent-glow: rgba(0, 201, 167, 0.2);
+}
+
+@layer base {
+  body {
+    @apply bg-app-bg text-white font-sans antialiased;
+  }
+}
+
+.teal-gradient {
+  background: linear-gradient(135deg, #00c9a7 0%, #008a73 100%);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glow-accent {
+  box-shadow: 0 0 20px var(--color-app-accent-glow);
+}
