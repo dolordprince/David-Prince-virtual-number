@@ -38,6 +38,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import UserLogin from './components/UserLogin';
 import { SERVICE_CATALOG } from './constants';
+import { Analytics } from '@vercel/analytics/react';
 
 // --- Types ---
 interface Service {
@@ -167,6 +168,7 @@ export default function App() {
           } 
         />
       </Routes>
+      <Analytics />
     </Router>
   );
 }
