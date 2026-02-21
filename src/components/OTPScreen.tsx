@@ -20,7 +20,6 @@ interface OTPScreenProps {
   orderID: string;
   phoneNumber: string;
   serviceName: string;
-  price: string;
   onBack: () => void;
   onNewNumber: () => void;
 }
@@ -29,7 +28,6 @@ const OTPScreen = ({
   orderID, 
   phoneNumber, 
   serviceName, 
-  price, 
   onBack,
   onNewNumber 
 }: OTPScreenProps) => {

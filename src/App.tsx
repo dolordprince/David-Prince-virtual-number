@@ -15,7 +15,13 @@ import {
   ChevronRight,
   Smartphone,
   Loader2,
-  HeadphonesIcon
+  HeadphonesIcon,
+  Search,
+  X,
+  ChevronDown,
+  Globe,
+  Star,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -28,17 +34,19 @@ import {
 } from 'react-router-dom';
 import OTPScreen from './components/OTPScreen';
 import AddMoneyModal from './components/AddMoneyModal';
-import AdminLogin from './components/AdminLogin';
-import AdminDashboard from './components/AdminDashboard';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
 import UserLogin from './components/UserLogin';
+import { SERVICE_CATALOG } from './constants';
 
 // --- Types ---
 interface Service {
   id: string;
   name: string;
-  icon: React.ReactNode;
-  color: string;
+  icon?: React.ReactNode;
+  color?: string;
   apiName: string;
+  price: number;
 }
 
 interface Order {
@@ -54,17 +62,40 @@ interface Order {
 
 // --- Components ---
 
-const ServiceCard = ({ service, onClick, loading }: { service: Service; onClick: () => void; loading: boolean; key?: React.Key }) => (
+const ServiceCard = ({ service, onClick, loading, availableCount = 45 }: { service: Service; onClick: () => void | Promise<void>; loading: boolean; availableCount?: number; key?: React.Key }) => (
   <motion.div 
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.95 }}
-    onClick={onClick}
-    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl glass-card cursor-pointer relative overflow-hidden"
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    className="flex flex-col p-4 rounded-2xl glass-card relative overflow-hidden h-full"
   >
-    <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-white/5 text-white`}>
-      {loading ? <Loader2 size={24} className="animate-spin text-app-accent" /> : service.icon}
+    <div className="flex items-start justify-between mb-3">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/5 text-white">
+        {service.icon || <Smartphone size={20} />}
+      </div>
+      {availableCount === 0 ? (
+        <span className="text-[8px] font-bold bg-white/10 text-white/40 px-2 py-0.5 rounded-full uppercase tracking-tighter">Out of Stock</span>
+      ) : (
+        <span className="text-[8px] font-bold bg-app-accent/10 text-app-accent px-2 py-0.5 rounded-full uppercase tracking-tighter">{availableCount} Available</span>
+      )}
     </div>
-    <span className="text-xs font-medium text-white/70">{service.name}</span>
+    
+    <h4 className="text-xs font-bold text-white mb-1 truncate">{service.name}</h4>
+    <p className="text-xs font-black text-app-accent mb-4">₦{service.price.toLocaleString()}</p>
+    
+    <button 
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={loading}
+      className={`mt-auto w-full py-2 rounded-xl text-[10px] font-bold transition-all ${
+        availableCount === 0 
+          ? 'bg-white/5 text-white/20 hover:bg-white/10' 
+          : 'bg-app-accent/10 text-app-accent hover:bg-app-accent hover:text-white'
+      }`}
+    >
+      {loading ? <Loader2 size={14} className="animate-spin mx-auto" /> : availableCount === 0 ? 'Notify Me' : 'Buy Number'}
+    </button>
   </motion.div>
 );
 
@@ -83,7 +114,7 @@ const OrderItem = ({ order, onClick }: { order: Order; onClick?: () => void; key
       </div>
     </div>
     <div className="text-right">
-      <p className="text-sm font-bold text-app-accent">₦{order.price}</p>
+      <p className="text-sm font-bold text-app-accent">Active</p>
       <p className="text-[10px] text-white/40 uppercase tracking-wider">{order.time}</p>
     </div>
   </div>
@@ -146,6 +177,11 @@ function UserApp() {
   const [buyingService, setBuyingService] = useState<string | null>(null);
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false);
   const [balance, setBalance] = useState(24500);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState('Russia');
   
   const globalPrice = parseInt(localStorage.getItem('virtual_number_price') || '1200');
 
@@ -154,16 +190,15 @@ function UserApp() {
     id: string;
     phone: string;
     service: string;
-    price: string;
   } | null>(null);
 
   const services: Service[] = [
-    { id: 'wa', name: 'WhatsApp', icon: <MessageSquare size={24} />, color: '#25D366', apiName: 'whatsapp' },
-    { id: 'ig', name: 'Instagram', icon: <Instagram size={24} />, color: '#E4405F', apiName: 'instagram' },
-    { id: 'fb', name: 'Facebook', icon: <Facebook size={24} />, color: '#1877F2', apiName: 'facebook' },
-    { id: 'tg', name: 'Telegram', icon: <Send size={24} />, color: '#0088cc', apiName: 'telegram' },
-    { id: 'tk', name: 'TikTok', icon: <Music2 size={24} />, color: '#000000', apiName: 'tiktok' },
-    { id: 'more', name: 'More', icon: <LayoutGrid size={24} />, color: '#ffffff', apiName: 'other' },
+    { id: 'wa', name: 'WhatsApp', icon: <MessageSquare size={24} />, color: '#25D366', apiName: 'whatsapp', price: 800 },
+    { id: 'ig', name: 'Instagram', icon: <Instagram size={24} />, color: '#E4405F', apiName: 'instagram', price: 1000 },
+    { id: 'fb', name: 'Facebook', icon: <Facebook size={24} />, color: '#1877F2', apiName: 'facebook', price: 800 },
+    { id: 'tg', name: 'Telegram', icon: <Send size={24} />, color: '#0088cc', apiName: 'telegram', price: 600 },
+    { id: 'tk', name: 'TikTok', icon: <Music2 size={24} />, color: '#000000', apiName: 'tiktok', price: 1000 },
+    { id: 'more', name: 'More', icon: <LayoutGrid size={24} />, color: '#ffffff', apiName: 'other', price: 0 },
   ];
 
   const [recentOrders, setRecentOrders] = useState<Order[]>([
@@ -172,14 +207,65 @@ function UserApp() {
     { id: '3', service: 'Instagram (NG)', number: '+234 801 234 5678', status: 'expired', price: '400', time: '5 HOURS AGO' },
   ]);
 
-  const buyNumber = async (service: Service) => {
-    if (service.id === 'more') {
-      setView('more_services');
-      return;
-    }
+  const categories = ["All", "Social Media", "Banking", "Email", "Rides", "Shopping", "Dating", "Streaming", "Gaming", "Crypto", "Nigerian Apps"];
 
-    if (balance < globalPrice) {
-      alert("Insufficient balance. Please add money to your wallet.");
+  const popularServices = [
+    { name: "WhatsApp", price: 800, apiName: "whatsapp", icon: <MessageSquare size={24} /> },
+    { name: "Instagram", price: 1000, apiName: "instagram", icon: <Instagram size={24} /> },
+    { name: "Facebook", price: 800, apiName: "facebook", icon: <Facebook size={24} /> },
+    { name: "Telegram", price: 600, apiName: "telegram", icon: <Send size={24} /> },
+    { name: "Gmail", price: 1500, apiName: "gmail" },
+    { name: "TikTok", price: 1000, apiName: "tiktok", icon: <Music2 size={24} /> },
+    { name: "Binance", price: 2000, apiName: "binance" },
+    { name: "PayPal", price: 2500, apiName: "paypal" },
+  ];
+
+  const countries = ["Russia", "USA", "UK", "Indonesia", "India", "Ghana", "Kenya", "South Africa", "Brazil", "Others"];
+
+  const getFilteredServices = () => {
+    let all: Service[] = [];
+    Object.entries(SERVICE_CATALOG).forEach(([cat, items]) => {
+      items.forEach((item, idx) => {
+        all.push({
+          id: `${cat}-${idx}`,
+          name: item.name,
+          apiName: item.apiName,
+          price: item.price,
+          icon: item.icon
+        });
+      });
+    });
+
+    return all.filter(s => {
+      const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase());
+      if (activeCategory === 'All') return matchesSearch;
+      
+      // Category mapping
+      const catMap: Record<string, string> = {
+        "Social Media": "SOCIAL MEDIA APPS",
+        "Banking": "MOBILE BANKING & FINTECH",
+        "Email": "EMAIL & GOOGLE SERVICES",
+        "Rides": "RIDE & DELIVERY APPS",
+        "Shopping": "SHOPPING",
+        "Dating": "DATING",
+        "Streaming": "STREAMING",
+        "Gaming": "GAMING",
+        "Crypto": "CRYPTO",
+        "Nigerian Apps": "NIGERIAN APPS"
+      };
+
+      const targetCat = catMap[activeCategory];
+      const isInCat = Object.entries(SERVICE_CATALOG).find(([cat, items]) => {
+        return cat === targetCat && items.some(i => i.apiName === s.apiName && i.name === s.name);
+      });
+
+      return matchesSearch && isInCat;
+    });
+  };
+
+  const buyNumber = async (service: Service) => {
+    if (balance < service.price) {
+      alert("Unable to complete purchase. Please top up your account.");
       setIsAddMoneyOpen(true);
       return;
     }
@@ -194,10 +280,10 @@ function UserApp() {
       
       const newOrder: Order = {
         id: data.id.toString(),
-        service: `${service.name} (Russia)`,
+        service: `${service.name} (${selectedCountry})`,
         number: data.phone,
         status: 'active',
-        price: globalPrice.toLocaleString(),
+        price: service.price.toLocaleString(),
         time: 'JUST NOW'
       };
 
@@ -206,17 +292,22 @@ function UserApp() {
       setActiveOrder({
         id: data.id.toString(),
         phone: data.phone,
-        service: service.name,
-        price: globalPrice.toLocaleString()
+        service: service.name
       });
       
-      setBalance(prev => prev - globalPrice);
+      setBalance(prev => prev - service.price);
       setView('otp');
+      setIsBottomSheetOpen(false);
     } catch (error) {
-      alert("Failed to purchase number. Please check your balance.");
+      alert("Failed to purchase number. Please try again later.");
     } finally {
       setBuyingService(null);
     }
+  };
+
+  const openServiceDetail = (service: Service) => {
+    setSelectedService(service);
+    setIsBottomSheetOpen(true);
   };
 
   const handleAddMoneySuccess = (amount: number) => {
@@ -228,37 +319,41 @@ function UserApp() {
   };
 
   if (view === 'more_services') {
-    const moreServices: Service[] = [
-      { id: 'wa', name: 'WhatsApp', icon: <MessageSquare size={24} />, color: '#25D366', apiName: 'whatsapp' },
-      { id: 'ig', name: 'Instagram', icon: <Instagram size={24} />, color: '#E4405F', apiName: 'instagram' },
-      { id: 'fb', name: 'Facebook', icon: <Facebook size={24} />, color: '#1877F2', apiName: 'facebook' },
-      { id: 'tg', name: 'Telegram', icon: <Send size={24} />, color: '#0088cc', apiName: 'telegram' },
-      { id: 'tk', name: 'TikTok', icon: <Music2 size={24} />, color: '#000000', apiName: 'tiktok' },
-      { id: 'tw', name: 'Twitter', icon: <LayoutGrid size={24} />, color: '#1DA1F2', apiName: 'twitter' },
-      { id: 'go', name: 'Google', icon: <LayoutGrid size={24} />, color: '#4285F4', apiName: 'google' },
-      { id: 'nf', name: 'Netflix', icon: <LayoutGrid size={24} />, color: '#E50914', apiName: 'netflix' },
-      { id: 'sp', name: 'Spotify', icon: <LayoutGrid size={24} />, color: '#1DB954', apiName: 'spotify' },
-      { id: 'am', name: 'Amazon', icon: <LayoutGrid size={24} />, color: '#FF9900', apiName: 'amazon' },
-      { id: 'sc', name: 'Snapchat', icon: <LayoutGrid size={24} />, color: '#FFFC00', apiName: 'snapchat' },
-      { id: 'li', name: 'LinkedIn', icon: <LayoutGrid size={24} />, color: '#0077B5', apiName: 'linkedin' },
-    ];
-
     return (
-      <div className="min-h-screen bg-app-bg text-white p-6 max-w-md mx-auto">
+      <div className="min-h-screen bg-app-bg text-white p-6 max-w-md mx-auto pb-24">
         <div className="flex items-center gap-4 mb-8">
           <button onClick={() => setView('dashboard')} className="w-10 h-10 rounded-full glass-card flex items-center justify-center">
             <ChevronRight size={24} className="rotate-180" />
           </button>
           <h3 className="text-xl font-bold">All Services</h3>
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          {moreServices.map(service => (
-            <ServiceCard 
-              key={service.id} 
-              service={service} 
-              onClick={() => buyNumber(service)}
-              loading={buyingService === service.id}
-            />
+        
+        <div className="space-y-10">
+          {Object.entries(SERVICE_CATALOG).map(([category, items]) => (
+            <div key={category} className="space-y-4">
+              <h4 className="text-[10px] font-black text-app-accent uppercase tracking-[0.2em] border-l-2 border-app-accent pl-3">
+                {category}
+              </h4>
+              <div className="grid grid-cols-3 gap-3">
+                {items.map((item, idx) => {
+                  const serviceObj: Service = {
+                    id: `${category}-${idx}`,
+                    name: item.name,
+                    apiName: item.apiName,
+                    price: item.price,
+                    icon: item.icon
+                  };
+                  return (
+                    <ServiceCard 
+                      key={serviceObj.id} 
+                      service={serviceObj} 
+                      onClick={() => buyNumber(serviceObj)}
+                      loading={buyingService === serviceObj.id}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -316,7 +411,7 @@ function UserApp() {
                 <p className="text-[10px] text-white/40">Opay • Today</p>
               </div>
             </div>
-            <p className="font-bold text-emerald-500">+₦5,000</p>
+            <p className="font-bold text-emerald-500">Success</p>
           </div>
           <div className="flex items-center justify-between p-4 rounded-2xl glass-card">
             <div className="flex items-center gap-3">
@@ -328,7 +423,7 @@ function UserApp() {
                 <p className="text-[10px] text-white/40">5SIM • Yesterday</p>
               </div>
             </div>
-            <p className="font-bold text-red-500">-₦{globalPrice.toLocaleString()}</p>
+            <p className="font-bold text-red-500">Processed</p>
           </div>
         </div>
       </div>
@@ -341,7 +436,6 @@ function UserApp() {
         orderID={activeOrder.id}
         phoneNumber={activeOrder.phone}
         serviceName={activeOrder.service}
-        price={activeOrder.price}
         onBack={() => setView('dashboard')}
         onNewNumber={() => setView('dashboard')}
       />
@@ -383,53 +477,104 @@ function UserApp() {
       <main className="flex-1 px-6 pb-24 overflow-y-auto z-10">
         {activeTab === 'home' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            {/* Wallet Card */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="teal-gradient p-6 rounded-[32px] mt-4 mb-8 shadow-2xl shadow-app-accent/20 relative overflow-hidden glow-accent"
-            >
-              <div className="absolute top-0 right-0 p-4 opacity-20">
-                <CreditCard size={120} strokeWidth={1} />
-              </div>
-              
-              <div className="relative z-10">
-                <p className="text-white/70 text-sm font-medium mb-1">Total Balance</p>
-                <h2 className="text-4xl font-bold mb-6">₦{balance.toLocaleString()}.00</h2>
-                
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setIsAddMoneyOpen(true)}
-                  className="bg-white text-app-accent px-6 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 shadow-lg"
+            {/* Search Bar */}
+            <div className="relative mt-4 mb-6">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={20} />
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search services..."
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-app-accent transition-colors"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white"
                 >
-                  <Plus size={18} />
-                  Add Money
-                </motion.button>
-              </div>
-            </motion.div>
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            {/* Popular Services */}
+            {!searchQuery && activeCategory === 'All' && (
+              <section className="mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <Star size={18} className="text-app-accent fill-app-accent" />
+                  <h3 className="text-lg font-bold">Popular</h3>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {popularServices.map((s, idx) => {
+                    const serviceObj: Service = {
+                      id: `popular-${idx}`,
+                      name: s.name,
+                      apiName: s.apiName,
+                      price: s.price,
+                      icon: s.icon
+                    };
+                    return (
+                      <motion.button
+                        key={serviceObj.id}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => openServiceDetail(serviceObj)}
+                        className="flex flex-col items-center gap-2"
+                      >
+                        <div className="w-14 h-14 rounded-2xl glass-card flex items-center justify-center text-white border border-white/5">
+                          {s.icon || <Smartphone size={24} />}
+                        </div>
+                        <span className="text-[10px] font-bold text-white/60 text-center truncate w-full">{s.name}</span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Category Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mb-8 -mx-6 px-6">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-6 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                    activeCategory === cat 
+                      ? 'bg-app-accent text-white shadow-lg shadow-app-accent/20' 
+                      : 'bg-white/5 text-white/40 hover:bg-white/10'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
 
             {/* Services Grid */}
             <section className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Services</h3>
-                <button 
-                  onClick={() => setView('more_services')}
-                  className="text-app-accent text-sm font-medium flex items-center gap-1"
-                >
-                  View All <ChevronRight size={16} />
-                </button>
+                <h3 className="text-lg font-bold">
+                  {searchQuery ? 'Search Results' : activeCategory === 'All' ? 'All Services' : activeCategory}
+                </h3>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                {services.map(service => (
-                  <ServiceCard 
-                    key={service.id} 
-                    service={service} 
-                    onClick={() => buyNumber(service)}
-                    loading={buyingService === service.id}
-                  />
-                ))}
-              </div>
+              
+              {getFilteredServices().length > 0 ? (
+                <div className="grid grid-cols-3 gap-4">
+                  {getFilteredServices().map(service => (
+                    <ServiceCard 
+                      key={service.id} 
+                      service={service} 
+                      onClick={() => openServiceDetail(service)}
+                      loading={buyingService === service.id}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20">
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Search size={32} className="text-white/10" />
+                  </div>
+                  <p className="text-white/40 font-medium">Service not available yet</p>
+                </div>
+              )}
             </section>
 
             {/* Recent Orders */}
@@ -465,8 +610,8 @@ function UserApp() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-4">
             <h3 className="text-2xl font-bold mb-6">My Wallet</h3>
             <div className="glass-card p-8 rounded-[32px] text-center mb-8">
-              <p className="text-white/40 text-sm mb-2">Available Balance</p>
-              <h2 className="text-5xl font-black text-app-accent mb-8">₦{balance.toLocaleString()}</h2>
+              <p className="text-white/40 text-sm mb-2">Wallet Status</p>
+              <h2 className="text-5xl font-black text-app-accent mb-8">Active</h2>
               <button 
                 onClick={() => setIsAddMoneyOpen(true)}
                 className="w-full py-4 rounded-2xl bg-app-accent text-white font-bold"
@@ -487,7 +632,7 @@ function UserApp() {
                     <p className="text-[10px] text-white/40">Opay • Today</p>
                   </div>
                 </div>
-                <p className="font-bold text-emerald-500">+₦5,000</p>
+                <p className="font-bold text-emerald-500">Success</p>
               </div>
             </div>
           </motion.div>
@@ -576,6 +721,84 @@ function UserApp() {
         onClose={() => setIsAddMoneyOpen(false)}
         onSuccess={handleAddMoneySuccess}
       />
+
+      {/* Service Detail Bottom Sheet */}
+      <AnimatePresence>
+        {isBottomSheetOpen && selectedService && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsBottomSheetOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#12121e] rounded-t-[40px] z-[70] p-8 border-t border-white/10"
+            >
+              <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8" />
+              
+              <div className="flex items-center gap-6 mb-8">
+                <div className="w-20 h-20 rounded-3xl glass-card flex items-center justify-center text-app-accent border border-app-accent/20">
+                  {selectedService.icon || <Smartphone size={40} />}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold mb-1">{selectedService.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-app-accent font-black text-xl">₦{selectedService.price.toLocaleString()}</span>
+                    <span className="text-[10px] font-bold bg-app-accent/10 text-app-accent px-2 py-0.5 rounded-full uppercase">45 Available</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6 mb-10">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest ml-1">Select Country</label>
+                  <div className="relative">
+                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-app-accent" size={20} />
+                    <select 
+                      value={selectedCountry}
+                      onChange={(e) => setSelectedCountry(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-10 text-sm font-bold appearance-none focus:outline-none focus:border-app-accent transition-colors"
+                    >
+                      {countries.map(c => (
+                        <option key={c} value={c} className="bg-[#12121e]">{c}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20" size={20} />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-app-accent mt-0.5">
+                    <Check size={12} />
+                  </div>
+                  <p className="text-[10px] text-white/50 leading-relaxed">
+                    You will be charged <span className="text-white font-bold">₦{selectedService.price.toLocaleString()}</span> for this number. 
+                    If no OTP is received within 20 minutes, you will be automatically refunded.
+                  </p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => buyNumber(selectedService)}
+                disabled={buyingService === selectedService.id}
+                className="w-full py-5 rounded-2xl bg-app-accent text-white font-black uppercase tracking-widest shadow-xl shadow-app-accent/20 flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
+              >
+                {buyingService === selectedService.id ? (
+                  <Loader2 className="animate-spin" size={24} />
+                ) : (
+                  <>Get Number — ₦{selectedService.price.toLocaleString()}</>
+                )}
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

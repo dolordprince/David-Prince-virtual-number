@@ -98,17 +98,16 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess }: AddMoneyMo
                 >
                   <div>
                     <label className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2 block">
-                      Enter Amount (Min ₦100)
+                      Enter Amount
                     </label>
                     <div className="relative">
-                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-bold text-app-accent">₦</span>
                       <input 
                         autoFocus
                         type="number"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-6 pl-12 pr-6 text-3xl font-bold focus:outline-none focus:border-app-accent transition-colors"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-6 px-6 text-3xl font-bold focus:outline-none focus:border-app-accent transition-colors"
                       />
                     </div>
                   </div>
@@ -121,7 +120,7 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess }: AddMoneyMo
                         onClick={() => setAmount(val)}
                         className="py-3 rounded-xl glass-card text-sm font-bold hover:bg-app-accent/10 hover:text-app-accent transition-all"
                       >
-                        +₦{val}
+                        {val}
                       </button>
                     ))}
                   </div>
@@ -218,7 +217,7 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess }: AddMoneyMo
                           <span className="font-bold text-sm">Opay</span>
                         </div>
                         <div className="pt-2 border-t border-white/5">
-                          <p className="text-[10px] text-white/30 text-center">Transfer exactly ₦{parseFloat(amount).toLocaleString()} to the account above. Your wallet will be credited automatically.</p>
+                          <p className="text-[10px] text-white/30 text-center">Transfer the specified amount to the account above. Your wallet will be credited automatically.</p>
                         </div>
                       </div>
                     </div>
@@ -271,7 +270,7 @@ export default function AddMoneyModal({ isOpen, onClose, onSuccess }: AddMoneyMo
                   </div>
                   <div className="text-center">
                     <h3 className="text-2xl font-bold mb-2">Payment Successful!</h3>
-                    <p className="text-white/40 text-sm mb-8">₦{parseFloat(amount).toLocaleString()} has been added to your wallet.</p>
+                    <p className="text-white/40 text-sm mb-8">Funds have been added to your wallet.</p>
                     <button 
                       onClick={resetAndClose}
                       className="w-full bg-app-accent text-white py-4 px-12 rounded-2xl font-bold"
