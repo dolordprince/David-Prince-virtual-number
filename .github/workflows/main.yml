@@ -1,1 +1,61 @@
 
+name: API Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  schedule:
+    # Run tests daily at 9 AM UTC (optional)
+    - cron: '0 9 * * *'
+
+jobs:
+  newman-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install Newman and reporters
+      run: |
+        npm install -g newman
+        npm install -g newman-reporter-htmlextra
+        
+    - name: Run API Tests
+      run: |
+        newman run collection.json \
+          --environment environment.json \
+          --reporters cli,htmlextra,junit \
+          --reporter-htmlextra-export newman-report.html \
+          --reporter-junit-export newman-report.xml \
+          --timeout-request 10000
+          
+    - name: Upload HTML Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: newman-html-report
+        path: newman-report.html
+        
+    - name: Upload JUnit Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: newman-junit-report
+        path: newman-report.xml
+        
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: Newman API Tests
+        path: newman-report.xml
+        reporter: java-junit
